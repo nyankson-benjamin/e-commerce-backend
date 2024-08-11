@@ -7,6 +7,8 @@ const productRoute = require("./routes/productsRoute");
 const authRoute = require("./routes/authRoute");
 const logger = require('./logger');
 const winston = require('winston');
+const swaggerDocs = require('./swagger'); // Import Swagger
+
 
 
 
@@ -33,4 +35,6 @@ app.use(require('express-winston').logger({
 app.use(usersRoute);
 app.use(productRoute);
 app.use(authRoute);
+swaggerDocs(app, process.env.PORT || 3000);
+
 module.exports = app;

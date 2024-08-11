@@ -1,13 +1,15 @@
-// const { MongoClient } = require("mongodb");
-// const dbURI = process.env.DB_URL_NEW;
-
-// const client = new MongoClient(dbURI);
-// const db = client.db("shop");
-// const usersCollection = db.collection("users");
 
 const database  = require("../Database/MongoDB");
+const token = require("../token/jwt");
+
 module.exports.users = async (req, res) => {
+  const userToken = req.headers.authorization?.split(" ")[1];
+  if (!userToken) {
+    return res.status(401).send("Access token required");
+  }
   try {
+    await token.verifyToken(userToken);
+
     await database.client.connect();
     const data = await database.usersCollection.find().toArray();
     res.json(data);
