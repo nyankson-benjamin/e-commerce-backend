@@ -35,6 +35,6 @@ app.use(require('express-winston').logger({
 app.use(usersRoute);
 app.use(productRoute);
 app.use(authRoute);
-swaggerDocs(app, process.env.PORT || 3000);
+swaggerDocs(app, process.env.PORT);
 
 module.exports = app;
