@@ -14,7 +14,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://e-commerce-backend-gilt.vercel.app/', // Replace with your server URL
+        url: 'http://localhost:8000', // Replace with your server URL
       },
     ],
   },
