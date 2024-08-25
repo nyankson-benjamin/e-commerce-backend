@@ -52,6 +52,77 @@ productRoute.post("/addtocart", products.AddtoCart);
 
 /**
  * @swagger
+ * /updatecartquantity:
+ *   patch:
+ *     summary: Update the quantity of an item in the cart
+ *     tags: [Cart]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: The ID of the user
+ *               itemId:
+ *                 type: string
+ *                 description: The ID of the item in the cart
+ *               quantity:
+ *                 type: integer
+ *                 description: The quantity to add to the current amount
+ *             example:
+ *               userId: "60c72b2f9b1e8a3a2b3e4e2b"
+ *               itemId: "60d21b4667d0d8992e610c85"
+ *               quantity: 3
+ *     responses:
+ *       200:
+ *         description: Quantity updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Quantity updated successfully"
+ *       400:
+ *         description: Bad request, e.g., missing fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Missing required fields"
+ *       404:
+ *         description: Cart item not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Cart item not found"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Internal Server Error"
+ */
+productRoute.patch("/updatecartquantity", products.updateCartQuantity);
+
+
+/**
+ * @swagger
  * /bulkAddToCart:
  *   post:
  *     summary: Add multiple products to the cart
@@ -153,6 +224,43 @@ productRoute.delete("/delete/cartItem", products.deleteCartItem);
  *       400:
  *         description: Bad request
  */
-productRoute.post("/purchase", products.PurchaseItem);
+productRoute.post("/purchase", products.PurchaseItems);
+
+/**
+ * @swagger
+ * /purchasemultiple:
+ *   post:
+ *     summary: Purchase multiple items in the cart
+ *     tags: [Purchase]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: The ID of the user
+ *               itemIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   description: The ID of the item to be purchased
+ *             example:
+ *               userId: "60c72b2f9b1e8a3a2b3e4e2b"
+ *               itemIds: 
+ *                 - "60c72b2f9b1e8a3a2b3e4e2c"
+ *                 - "60c72b2f9b1e8a3a2b3e4e2d"
+ *     responses:
+ *       200:
+ *         description: Items marked as purchased
+ *       404:
+ *         description: Some items were not found in the cart
+ *       500:
+ *         description: An error occurred while purchasing the items
+ */
+productRoute.post("/purchasemultiple", products.PurchaseMultipleItems);
+
 
 module.exports = productRoute;
