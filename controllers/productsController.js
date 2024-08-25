@@ -9,13 +9,21 @@ module.exports.products = async (req, res) => {
 
     res.json(data);
   } catch (error) {
-    console.error("Error:", error);
     res.status(500).send("Internal Server Error");
   }
 };
 
 module.exports.AddtoCart = async (req, res) => {
-  const { unitPrice, item, image, quantity, email, totalPrice, itemId, discountPercentage } = req.body;
+  const {
+    unitPrice,
+    item,
+    image,
+    quantity,
+    email,
+    totalPrice,
+    itemId,
+    discountPercentage,
+  } = req.body;
 
   const items = {
     unitPrice,
@@ -34,9 +42,23 @@ module.exports.AddtoCart = async (req, res) => {
     return res.status(409).json({ message: "User does not exist" });
   }
 
-  const existingItem = await database.cartCollection.findOne({ userId: user._id, itemId });
+  const existingItem = await database.cartCollection.findOne({
+    userId: user._id,
+    itemId,
+  });
 
-  if (existingItem) {
+   if(existingItem && existingItem.purchased){
+    try {
+      await database.cartCollection.updateOne(
+        { userId: user._id, itemId },
+        { $set: { purchased:false, quantity, totalPrice } }
+      );
+      return res.status(200).json({ message: "Product added successfully" });
+    } catch (error) {
+      return res.status(409).json({ message: "Unable to add product" });
+    }
+  }
+  else if (existingItem) {
     // Calculate the new quantity and total price
     const newQuantity = existingItem.quantity + quantity;
     const newTotalPrice = existingItem.totalPrice + totalPrice;
@@ -50,7 +72,8 @@ module.exports.AddtoCart = async (req, res) => {
     } catch (error) {
       return res.status(409).json({ message: "Unable to update product" });
     }
-  } else {
+  }
+  else {
     try {
       await database.cartCollection.insertOne({ userId: user._id, ...items });
       return res.status(201).json({ message: "Product added successfully" });
@@ -60,10 +83,40 @@ module.exports.AddtoCart = async (req, res) => {
   }
 };
 
+module.exports.updateCartQuantity = async (req, res) => {
+  const { userId, itemId, quantity } = req.body;
+
+  if (!userId || !itemId || quantity === undefined) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    // Find the existing cart item
+    const existingItem = await database.cartCollection.findOne({
+      userId: new ObjectID(userId),
+      itemId,
+    });
+
+    if (!existingItem) {
+      return res.status(408).json({ message: "Cart item not found" });
+    }
+
+    // Update the quantity of the item
+    await database.cartCollection.updateOne(
+      { userId: new ObjectID(userId), itemId },
+      { $set: { quantity, 
+        totalPrice: quantity*existingItem.unitPrice } }
+    );
+
+    return res.status(200).json({ message: "Quantity updated successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 
 module.exports.addBulk = async (req, res) => {
   const { email, items } = req.body;
-console.log("i will add bulk")
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ message: "Items must be a non-empty array" });
   }
@@ -77,7 +130,15 @@ console.log("i will add bulk")
   let existingItems = [];
 
   for (const item of items) {
-    const { unitPrice, item: itemName, image, quantity, totalPrice, itemId, discountPercentage } = item;
+    const {
+      unitPrice,
+      item: itemName,
+      image,
+      quantity,
+      totalPrice,
+      itemId,
+      discountPercentage,
+    } = item;
 
     const itemExists = await database.cartCollection
       .find({ userId: user._id, itemId })
@@ -96,11 +157,13 @@ console.log("i will add bulk")
           email,
           totalPrice,
           itemId,
-          discountPercentage
+          discountPercentage,
         });
         addedItems.push(itemId);
       } catch (error) {
-        return res.status(500).json({ message: `Error adding item ${itemId}`, error });
+        return res
+          .status(500)
+          .json({ message: `Error adding item ${itemId}`, error });
       }
     }
   }
@@ -112,20 +175,18 @@ console.log("i will add bulk")
   });
 };
 
-
 module.exports.getCarts = async (req, res) => {
   const { id } = req.query;
   try {
     const user = await database.cartCollection
       .find({ userId: new ObjectID(id) })
       .toArray();
-    console.log(user);
+    const userCart = user?.filter(cart=>!cart?.purchased)
     if (!user) {
       return res.status(409).json({ message: "Could not fetch cart" });
     }
-    res.json({ cart: user });
+    res.json({ cart: userCart });
   } catch (error) {
-    console.log(error);
     res.status(409).json({ message: "Could not fetch cart" });
   }
 };
@@ -133,25 +194,27 @@ module.exports.getCarts = async (req, res) => {
 module.exports.deleteCartItem = async (req, res) => {
   const { userId, itemId } = req.query;
 
-try {
-  const result = await database.cartCollection.findOneAndDelete({
-    userId: new ObjectID(userId),
-    _id:new ObjectID(itemId), 
-  });
+  try {
+    const result = await database.cartCollection.findOneAndDelete({
+      userId: new ObjectID(userId),
+      _id: new ObjectID(itemId),
+    });
 
-  console.log("Item deleted:", result.value);
-  if (result.value) {
-    res.status(200).json({ message: "Item deleted successfully", item: result.value });
-  } else {
-    res.status(404).json({ message: "Item not found" });
+    if (result.value) {
+      res
+        .status(200)
+        .json({ message: "Item deleted successfully", item: result.value });
+    } else {
+      res.status(404).json({ message: "Item not found" });
+    }
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the item" });
   }
-} catch (error) {
-  console.error("Error deleting item:", error);
-  res.status(500).json({ error: "An error occurred while deleting the item" });
-}
 };
 
-module.exports.PurchaseItem = async (req, res) => {
+module.exports.PurchaseItems = async (req, res) => {
   const { userId, itemId } = req.body;
 
   try {
@@ -176,7 +239,42 @@ module.exports.PurchaseItem = async (req, res) => {
 
     res.status(200).json({ message: "Item marked as purchased" });
   } catch (error) {
-    console.error("Error purchasing item:", error);
-    res.status(500).json({ error: "An error occurred while purchasing the item" });
+    res
+      .status(500)
+      .json({ error: "An error occurred while purchasing the item" });
   }
 };
+
+module.exports.PurchaseMultipleItems = async (req, res) => {
+  const { userId, itemIds } = req.body;
+
+  try {
+    // Convert userId to ObjectId if it is not already
+    const userObjectId = new ObjectID(userId);
+    
+    // Convert itemIds to ObjectIds
+    const itemObjectIds = itemIds.map((id) => new ObjectID(id));
+
+    // Find the items in the cart
+    const userCart = await database.cartCollection
+      .find({ userId: userObjectId, _id: { $in: itemObjectIds } })
+      .toArray();
+
+    if (userCart.length !== itemIds.length) {
+      return res.status(404).json("Some items were not found in the cart");
+    }
+
+    // Update the items to set the purchased property to true
+    await database.cartCollection.updateMany(
+      { userId: userObjectId, _id: { $in: itemObjectIds } },
+      { $set: { purchased: true } }
+    );
+
+    res.status(200).json({ message: "Items purchased successfully" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while purchasing the items" });
+  }
+};
+
